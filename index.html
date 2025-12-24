@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ruota della Fortuna</title>
+
+  <style>
+    :root{
+      --bg1:#0b0f1a;
+      --bg2:#0a0a0a;
+      --card: rgba(255,255,255,.06);
+      --text:#fff;
+      --muted: rgba(255,255,255,.75);
+      --accent:#ff3b3b;
+      --shadow: 0 20px 60px rgba(0,0,0,.55);
+    }
+
+    * { box-sizing: border-box; }
+    body{
+      margin:0;
+      min-height:100vh;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(1200px 600px at 20% 10%, rgba(95, 56, 255, .25), transparent 60%),
+        radial-gradient(900px 500px at 80% 30%, rgba(0, 255, 200, .18), transparent 60%),
+        linear-gradient(180deg, var(--bg1), var(--bg2));
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding: 18px;
+    }
+
+    .wrap{
+      width:min(980px, 100%);
+      display:grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap: 16px;
+    }
+    @media (max-width: 860px){
+      .wrap{ grid-template-columns: 1fr; }
+      body{ padding: 12px; }
+    }
+
+    .panel{
+      background: var(--card);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      overflow:hidden;
+    }
+
+    .header{
+      padding: 16px 16px 12px;
+      border-bottom: 1px solid rgba(255,255,255,.10);
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .title h1{
+      margin:0;
+      font-size: 22px;
+      display:flex;
+      gap:10px;
+      align-items:center;
+    }
+    .title p{
+      margin:6px 0 0;
+      font-size:13px;
+      color:var(--muted);
+      line-height: 1.2rem;
+    }
+
+    .kbd{
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: rgba(255,255,255,.1);
+      border: 1px solid rgba(255,255,255,.12);
+      font-weight:800;
+    }
+
+    .actions{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+
+    button{
+      appearance:none;
+      border:0;
+      cursor:pointer;
+      padding: 10px 14px;
+      border-radius: 12px;
+      background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.08));
+      color: #fff;
+      border:1px solid rgba(255,255,255,.14);
+      box-shadow: 0 10px 25px rgba(0,0,0,.28);
+      font-weight: 800;
+      letter-spacing:.2px;
+      transition: transform .12s ease, filter .12s ease, opacity .12s ease;
+      user-select:none;
+    }
+    button:hover{ transform: translateY(-1px); filter: brightness(1.08); }
+    button:active{ transform: translateY(0px) scale(.99); }
+    button:disabled{ opacity:.5; cursor:not-allowed; transform:none; }
+
+    /* Wheel */
+    .wheelArea{
+      padding: 16px;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+    }
+
+    #wheel-container{
+      position:relative;
+      width: min(420px, 92vw);
+      aspect-ratio: 1 / 1;
+      touch-action: manipulation; /* iOS: riduce delay click */
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #wheel{
+      width:100%;
+      height:100%;
+      border-radius:50%;
+      border:10px solid rgba(255,255,255,.75);
+      box-shadow:
+        0 0 0 10px rgba(255,255,255,.09),
+        0 30px 80px rgba(0,0,0,.55);
+      transition: transform 4s cubic-bezier(.12,.8,.18,1);
+      will-change: transform;
+      display:block;
+    }
+
+    /* ✅ Freccia punta in giù (triangolo) */
+    #pointer{
+      position:absolute;
+      top: 8px; /* leggermente dentro la ruota */
+      left:50%;
+      transform: translateX(-50%);
+      width:0;
+      height:0;
+      border-left: 10px solid transparent;
+      border-right:10px solid transparent;
+      border-top: 18px solid var(--accent); /* punta verso il basso */
+      filter: drop-shadow(0 6px 8px rgba(0,0,0,.6));
+      z-index:10;
+      pointer-events:none;
+    }
+
+    .result{
+      padding: 14px 16px 18px;
+      text-align:center;
+      font-weight:900;
+      letter-spacing:.2px;
+    }
+
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      box-shadow: 0 14px 40px rgba(0,0,0,.28);
+      max-width: 100%;
+      flex-wrap:wrap;
+    }
+
+    /* Right panel */
+    .side{
+      padding: 14px;
+      display:flex;
+      flex-direction:column;
+      gap: 14px;
+    }
+
+    .box{
+      background: rgba(255,255,255,.05);
+      border-radius: 14px;
+      padding: 12px;
+      border: 1px solid rgba(255,255,255,.10);
+    }
+    .box h3{
+      margin:0 0 8px;
+      font-size:14px;
+    }
+
+    .list{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+    }
+    .chip{
+      padding:6px 10px;
+      border-radius:999px;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.10);
+      font-size:12px;
+      color: rgba(255,255,255,.92);
+    }
+
+    .history{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      max-height: 260px;
+      overflow:auto;
+      padding-right: 4px;
+    }
+    .row{
+      display:flex;
+      justify-content:space-between;
+      gap: 10px;
+      font-size:13px;
+      background: rgba(0,0,0,.2);
+      padding:8px 10px;
+      border-radius:10px;
+      border: 1px solid rgba(255,255,255,.08);
+    }
+    .row span:first-child{
+      opacity:.85;
+      font-weight:900;
+    }
+
+    .hint{
+      font-size:12px;
+      color:var(--muted);
+      opacity:.9;
+      white-space:nowrap;
+    }
+  </style>
+</head>
+
+<body>
+<div class="wrap">
+
+  <!-- LEFT -->
+  <section class="panel">
+    <div class="header">
+      <div class="title">
+        <h1>🎡 Ruota della Fortuna</h1>
+        <p>
+          Su PC premi <span class="kbd">SPAZIO</span>. Su iPhone <b>tocca la ruota</b>.
+        </p>
+      </div>
+
+      <div class="actions">
+        <button id="resetBtn" title="Reset">Reset</button>
+        <div class="hint">Animazione 4s</div>
+      </div>
+    </div>
+
+    <div class="wheelArea">
+      <div id="wheel-container" aria-label="Tocca per girare">
+        <div id="pointer"></div>
+        <canvas id="wheel" width="420" height="420"></canvas>
+      </div>
+    </div>
+
+    <div class="result">
+      <div class="badge" id="result">Pronto a girare 🎯</div>
+    </div>
+  </section>
+
+  <!-- RIGHT -->
+  <aside class="panel">
+    <div class="side">
+      <div class="box">
+        <h3>Rimanenti (<span id="remainingCount"></span>)</h3>
+        <div class="list" id="remainingList"></div>
+      </div>
+
+      <div class="box">
+        <h3>Storico eliminazioni</h3>
+        <div class="history" id="history"></div>
+      </div>
+    </div>
+  </aside>
+
+</div>
+
+<script>
+/* ==========================
+   CONFIGURAZIONE SEGRETA 😈
+========================== */
+
+const FINAL_WINNER = "Carlotto";
+
+const NAMES = [
+  "Davide","Gian","Giulia","Zano","Billy",
+  "Capo","JP","Jenny","Emma","Carlotto",
+  "Tommaso G","Carradore","Tipa di Carra"
+];
+
+/* ========================== */
+
+const wheelContainer = document.getElementById("wheel-container");
+const canvas = document.getElementById("wheel");
+const ctx = canvas.getContext("2d");
+const resetBtn = document.getElementById("resetBtn");
+
+const resultEl = document.getElementById("result");
+const remainingListEl = document.getElementById("remainingList");
+const remainingCountEl = document.getElementById("remainingCount");
+const historyEl = document.getElementById("history");
+
+let remaining = [];
+let rotation = 0;
+let history = [];
+let eliminationQueue = [];
+let queueIndex = 0;
+let spinning = false;
+
+/** Utility: modulo positivo */
+function mod(n, m){ return ((n % m) + m) % m; }
+
+/** Fisher–Yates shuffle */
+function shuffle(arr){
+  for(let i=arr.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [arr[i],arr[j]]=[arr[j],arr[i]];
+  }
+  return arr;
+}
+
+/** Disegna ruota: centro fetta 0 sotto la freccia */
+function drawWheel(list){
+  const size = canvas.width;
+  const cx = size/2;
+  const cy = size/2;
+  const r  = size/2;
+
+  ctx.clearRect(0,0,size,size);
+  const slices = list.length;
+  if(!slices) return;
+
+  const angle = 2*Math.PI/slices;
+  const start = -Math.PI/2 - angle/2;
+
+  list.forEach((name,i)=>{
+    const a0 = start + i*angle;
+    const a1 = a0 + angle;
+
+    ctx.beginPath();
+    ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,r,a0,a1);
+    ctx.closePath();
+
+    ctx.fillStyle = `hsl(${i*360/slices}, 75%, 58%)`;
+    ctx.fill();
+
+    ctx.strokeStyle = "rgba(255,255,255,.22)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.save();
+    ctx.translate(cx,cy);
+    ctx.rotate(a0 + angle/2);
+    ctx.textAlign = "right";
+    ctx.font = "800 16px Arial";
+    ctx.fillStyle = "rgba(10,10,10,.90)";
+    ctx.fillText(name, r-16, 6);
+    ctx.restore();
+  });
+
+  // centro
+  ctx.beginPath();
+  ctx.arc(cx, cy, 24, 0, Math.PI*2);
+  ctx.fillStyle = "rgba(255,255,255,.12)";
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,.25)";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+function renderUI(){
+  remainingCountEl.textContent = remaining.length;
+
+  remainingListEl.innerHTML = "";
+  remaining.forEach(n=>{
+    const c = document.createElement("div");
+    c.className = "chip";
+    c.textContent = n;
+    remainingListEl.appendChild(c);
+  });
+
+  historyEl.innerHTML = "";
+  if(history.length === 0){
+    const r = document.createElement("div");
+    r.className = "row";
+    r.innerHTML = `<span>—</span><span>Nessuna eliminazione</span>`;
+    historyEl.appendChild(r);
+    return;
+  }
+
+  history.slice().reverse().forEach((h,i)=>{
+    const r = document.createElement("div");
+    r.className = "row";
+    r.innerHTML = `<span>#${history.length-i}</span><span>❌ ${h}</span>`;
+    historyEl.appendChild(r);
+  });
+}
+
+function reset(){
+  remaining = [...NAMES];
+  history = [];
+  rotation = 0;
+  spinning = false;
+
+  // ordine casuale ad ogni reset, Carlotto sempre ultimo
+  const others = remaining.filter(n => n !== FINAL_WINNER);
+  shuffle(others);
+  eliminationQueue = [...others, FINAL_WINNER];
+  queueIndex = 0;
+
+  canvas.style.transition = "none";
+  canvas.style.transform = "rotate(0deg)";
+  canvas.offsetHeight; // reflow
+  canvas.style.transition = "transform 4s cubic-bezier(.12,.8,.18,1)";
+
+  resultEl.textContent = "Pronto a girare 🎯";
+  drawWheel(remaining);
+  renderUI();
+}
+
+function spin(){
+  if(spinning) return;
+  if(remaining.length === 0) return;
+  spinning = true;
+  resetBtn.disabled = true;
+
+  const eliminated = eliminationQueue[queueIndex++];
+  const index = remaining.indexOf(eliminated);
+  const sliceAngle = 360 / remaining.length;
+
+  // porta la fetta index sotto la freccia (in alto)
+  const desiredMod = mod(360 - index * sliceAngle, 360);
+  const currentMod = mod(rotation, 360);
+  const delta = mod(desiredMod - currentMod, 360);
+
+  rotation += 6*360 + delta;
+  canvas.style.transform = `rotate(${rotation}deg)`;
+
+  setTimeout(()=>{
+    if(remaining.length > 1){
+      resultEl.textContent = `❌ Eliminato: ${eliminated}`;
+      history.push(eliminated);
+    } else {
+      resultEl.textContent = `🏆 Vincitore: ${eliminated}`;
+    }
+
+    remaining = remaining.filter(n => n !== eliminated);
+    drawWheel(remaining);
+    renderUI();
+
+    // piccola vibrazione su iPhone (se supportata)
+    if (navigator.vibrate) navigator.vibrate(30);
+
+    spinning = false;
+    resetBtn.disabled = false;
+  }, 4000);
+}
+
+/* ====== CONTROLLI ====== */
+
+// PC: SPAZIO
+document.addEventListener("keydown", (e) => {
+  if(e.code === "Space"){
+    e.preventDefault();
+    spin();
+  }
+});
+
+// iPhone/Touch: tap sulla ruota
+wheelContainer.addEventListener("click", () => spin());
+wheelContainer.addEventListener("touchend", (e) => {
+  e.preventDefault();
+  spin();
+}, { passive: false });
+
+// Reset
+resetBtn.addEventListener("click", reset);
+
+/* Avvio */
+reset();
+</script>
+</body>
+</html>
