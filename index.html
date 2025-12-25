@@ -297,17 +297,14 @@
 ========================== */
 
 /**
- * ✅ Vincono SOLO uno di questi (casuale):
- * Carlotto / Emma / Enry Vicenza / Morosa Enry / Carradore
- *
- * ⚠️ Ma NON saranno per forza gli ultimi 5:
- * - facciamo una coda eliminazioni "quasi casuale"
- * - i 5 favoriti vengono eliminati in media più tardi, ma NON sempre tutti alla fine
- * - l'ultimo rimasto (vincitore) è uno dei 5 favoriti, sempre
+ * ✅ Regola unica:
+ * - Il vincitore finale deve essere casualmente UNO tra questi 5.
+ * - Tutti gli altri possono vincere? NO. Devono PERDERE prima.
+ * - Però i 5 NON devono per forza essere gli ultimi: possono uscire anche prima,
+ *   basta che NON esca il vincitore scelto (che resterà ultimo).
  */
 const WINNER_POOL = ["Carlotto", "Emma", "Enry Vicenza", "Morosa Enry", "Carradore"];
 
-// elenco completo partecipanti
 const NAMES = [
   "Davide","Gian","Giulia","Zano","Billy",
   "Capo","JP","Jenny",
@@ -335,10 +332,8 @@ let eliminationQueue = [];
 let queueIndex = 0;
 let spinning = false;
 
-/** Utility: modulo positivo */
 function mod(n, m){ return ((n % m) + m) % m; }
 
-/** Fisher–Yates shuffle */
 function shuffle(arr){
   for(let i=arr.length-1;i>0;i--){
     const j=Math.floor(Math.random()*(i+1));
@@ -352,69 +347,25 @@ function pickOne(arr){
 }
 
 /**
- * Costruisce una coda eliminazioni che:
- * - garantisce vincitore in WINNER_POOL
- * - sembra "naturale": alcuni favoriti possono uscire anche prima del finale
- * - ma il vincitore rimane ultimo
+ * ✅ Coda eliminazioni 100% "casuale" tranne una cosa:
+ * - scegliamo un vincitore W dal pool
+ * - poi generiamo un ORDINE CASUALE di eliminazione per TUTTI GLI ALTRI (compresi gli altri 4 del pool!)
+ * - alla fine mettiamo W ultimo
  *
- * Strategia:
- * 1) scegli winner casuale tra pool
- * 2) crea lista di eliminabili (tutti tranne winner)
- * 3) applica uno "shuffle ponderato":
- *    - in fase iniziale, è MOLTO più probabile eliminare non-favoriti
- *    - andando avanti, aumenta la probabilità di eliminare anche favoriti
- * 4) append winner alla fine
+ * Risultato:
+ * - gli altri 4 del pool possono uscire anche presto (e quindi non restano sempre gli ultimi 5)
+ * - il vincitore è SEMPRE uno dei 5 ed è casuale
  */
 function buildEliminationQueue(allNames, pool){
   const poolPresent = pool.filter(n => allNames.includes(n));
   const winner = pickOne(poolPresent);
 
-  let candidates = allNames.filter(n => n !== winner);
+  const everyoneElse = allNames.filter(n => n !== winner);
+  shuffle(everyoneElse);
 
-  const queue = [];
-  // copie per selezione
-  let bag = [...candidates];
-
-  // parametri: quanto "protetti" sono i favoriti all'inizio
-  // (più alto = più tardi in media)
-  const earlyProtection = 0.80; // 80% bias verso eliminare non-favoriti
-  const minBias = 0.10;         // a fine gioco resta un piccolo bias
-
-  while (bag.length > 0){
-    const remainingCount = bag.length + 1; // +winner che resta
-    const progress = 1 - (remainingCount / allNames.length); // 0..~1
-    // bias decresce con il progresso: da earlyProtection verso minBias
-    const bias = Math.max(minBias, earlyProtection * (1 - progress));
-
-    // separa
-    const nonFav = bag.filter(n => !poolPresent.includes(n));
-    const fav = bag.filter(n => poolPresent.includes(n));
-
-    let pickFromNonFav = false;
-
-    if (nonFav.length === 0) {
-      pickFromNonFav = false;
-    } else if (fav.length === 0) {
-      pickFromNonFav = true;
-    } else {
-      // probabilità di prendere un non-favorito
-      pickFromNonFav = (Math.random() < (0.5 + bias));
-      // 0.5 + bias => all'inizio ~0.9, poi scende verso ~0.6
-    }
-
-    const source = pickFromNonFav ? nonFav : fav;
-    const chosen = source[Math.floor(Math.random() * source.length)];
-
-    // rimuovi da bag
-    bag = bag.filter(n => n !== chosen);
-    queue.push(chosen);
-  }
-
-  queue.push(winner); // vincitore sempre ultimo
-  return queue;
+  return [...everyoneElse, winner];
 }
 
-/** Disegna ruota */
 function drawWheel(list){
   const size = canvas.width;
   const cx = size/2;
@@ -454,7 +405,6 @@ function drawWheel(list){
     ctx.restore();
   });
 
-  // centro
   ctx.beginPath();
   ctx.arc(cx, cy, 24, 0, Math.PI*2);
   ctx.fillStyle = "rgba(255,255,255,.12)";
@@ -498,7 +448,6 @@ function reset(){
   rotation = 0;
   spinning = false;
 
-  // ✅ qui la magia: vincitore garantito nel pool, ma ordine "naturale"
   eliminationQueue = buildEliminationQueue(remaining, WINNER_POOL);
   queueIndex = 0;
 
@@ -515,19 +464,12 @@ function reset(){
 function spin(){
   if(spinning) return;
   if(remaining.length === 0) return;
+
   spinning = true;
   resetBtn.disabled = true;
 
   const eliminated = eliminationQueue[queueIndex++];
   const index = remaining.indexOf(eliminated);
-
-  // sicurezza (non dovrebbe mai succedere)
-  if(index === -1){
-    spinning = false;
-    resetBtn.disabled = false;
-    return;
-  }
-
   const sliceAngle = 360 / remaining.length;
 
   const desiredMod = mod(360 - index * sliceAngle, 360);
@@ -576,3 +518,4 @@ reset();
 </script>
 </body>
 </html>
+
